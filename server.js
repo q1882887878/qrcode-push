@@ -25,6 +25,7 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 // 状态管理
 const frontendClients = new Map();  // clientId -> { ws, name, online, registeredAt, currentContent }
 const adminSockets = new Set();     // 管理端 WebSocket 连接
+const pushHistory = [];             // 已推送记录 [{ phone, content, time, targetId }]
 
 wss.on('connection', (ws) => {
     ws.isAlive = true;
@@ -98,6 +99,11 @@ wss.on('connection', (ws) => {
                     type: 'client_list',
                     clients: clientList,
                 }));
+                // 同时发送推送历史
+                ws.send(JSON.stringify({
+                    type: 'push_history_update',
+                    history: pushHistory,
+                }));
                 console.log('[管理端] 已连接，发送客户端列表');
                 break;
             }
@@ -108,6 +114,7 @@ wss.on('connection', (ws) => {
                 const payload = msg.payload;
                 if (!payload) break;
 
+                // 记录推送历史
                 if (targetId === 'all') {
                     // 推送到所有前端
                     for (const [id, info] of frontendClients) {
@@ -118,6 +125,15 @@ wss.on('connection', (ws) => {
                             }));
                         }
                         info.currentContent = payload.content || '';
+                        // 每个客户端记录一条
+                        if (info.phone) {
+                            pushHistory.push({
+                                phone: info.phone,
+                                content: payload.content || '',
+                                time: Date.now(),
+                                targetId: id,
+                            });
+                        }
                     }
                 } else {
                     // 推送到指定前端
@@ -129,6 +145,14 @@ wss.on('connection', (ws) => {
                         }));
                         target.currentContent = payload.content || '';
                     }
+                    if (target && target.phone) {
+                        pushHistory.push({
+                            phone: target.phone,
+                            content: payload.content || '',
+                            time: Date.now(),
+                            targetId: targetId,
+                        });
+                    }
                 }
 
                 // 通知管理端更新状态
@@ -136,6 +160,11 @@ wss.on('connection', (ws) => {
                     type: 'client_updated',
                     clientId: targetId,
                     currentContent: payload.content || '',
+                });
+                // 通知管理端推送历史更新
+                broadcastToAdmins({
+                    type: 'push_history_update',
+                    history: pushHistory,
                 });
                 console.log(`[推送] → ${targetId === 'all' ? '全部' : targetId.slice(-8)}: ${(payload.content || '').substring(0, 30)}`);
                 break;
