@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二维码推送后台管理</title>
+    <style>
+        :root {
+            --bg: #13141a;
+            --card: #1e1f2b;
+            --border: #2e2f3e;
+            --accent: #4f7cff;
+            --accent-hover: #6f94ff;
+            --text: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #f5a623;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .page-container {
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,255,255,0.05);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #666;
+        }
+        .status-dot.online {
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        /* 客户端列表 */
+        .section-title {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .section-title .count {
+            background: var(--accent);
+            color: white;
+            font-size: 0.7rem;
+            padding: 1px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .client-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .client-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .client-card:hover {
+            border-color: rgba(79,124,255,0.3);
+            background: rgba(79,124,255,0.05);
+        }
+        .client-card.selected {
+            border-color: var(--accent);
+            background: rgba(79,124,255,0.08);
+            box-shadow: 0 0 0 3px rgba(79,124,255,0.12);
+        }
+        .client-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: rgba(79,124,255,0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+        .client-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .client-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .client-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+        .client-status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .client-status-indicator.online {
+            background: var(--success);
+            box-shadow: 0 0 6px var(--success);
+        }
+        .client-status-indicator.offline {
+            background: #555;
+        }
+        .client-current {
+            font-size: 0.7rem;
+            color: var(--accent);
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .empty-clients {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            background: var(--card);
+            border-radius: 12px;
+            border: 1px dashed var(--border);
+        }
+        .empty-clients .icon { font-size: 2rem; margin-bottom: 8px; display: block; }
+
+        /* 推送表单 */
+        .push-form {
+            background: var(--card);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 24px;
+            margin-bottom: 16px;
+        }
+        .target-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+            padding: 10px 14px;
+            background: rgba(79,124,255,0.06);
+            border-radius: 10px;
+            font-size: 0.85rem;
+            color: var(--accent);
+        }
+        .target-info .arrow { font-size: 1.1rem; }
+
+        .input-group { margin-bottom: 14px; }
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            letter-spacing: 0.3px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input:focus, textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(79,124,255,0.15);
+        }
+        textarea {
+            resize: vertical;
+            font-family: monospace;
+            min-height: 70px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.3px;
+        }
+        .btn-push {
+            background: var(--accent);
+            color: white;
+        }
+        .btn-push:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+        .btn-push:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-push-all {
+            background: linear-gradient(135deg, #6366f1, #4f7cff);
+            color: white;
+        }
+        .btn-push-all:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        .btn-clear {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        .btn-clear:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        .btn-danger {
+            background: rgba(239,68,68,0.1);
+            color: var(--danger);
+            border: 1px solid rgba(239,68,68,0.2);
+        }
+        .btn-danger:hover {
+            background: rgba(239,68,68,0.2);
+        }
+
+        /* 日志区域 */
+        .log-area {
+            background: var(--card);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            padding: 14px 16px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .log-entry {
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            padding: 3px 0;
+        }
+        .log-time {
+            color: var(--accent);
+            font-size: 0.7rem;
+            margin-right: 6px;
+        }
+        .log-target {
+            color: var(--warning);
+            font-size: 0.7rem;
+            margin-right: 4px;
+        }
+        .empty-state {
+            opacity: 0.5;
+            font-style: italic;
+        }
+
+        .tip {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            padding: 12px 0;
+            line-height: 1.5;
+            text-align: center;
+        }
+
+        /* 连接状态 */
+        .conn-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            padding: 6px 10px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        .conn-status.connected {
+            background: rgba(34,197,94,0.1);
+            color: var(--success);
+        }
+        .conn-status.disconnected {
+            background: rgba(239,68,68,0.1);
+            color: var(--danger);
+        }
+
+        /* Toast 提示 */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .toast {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 18px;
+            font-size: 0.85rem;
+            color: var(--text);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toast.error { border-color: rgba(239,68,68,0.3); }
+        .toast.success { border-color: rgba(34,197,94,0.3); }
+        @keyframes toastIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes toastOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
+        /* 响应式 */
+        @media (max-width: 480px) {
+            body { padding: 12px; }
+            .push-form { padding: 16px; }
+            .btn-row { flex-wrap: wrap; }
+            .btn-row button { flex: 1 1 calc(50% - 5px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <!-- 顶部 -->
+        <div class="header">
+            <span class="title">📡 二维码推送控制台</span>
+            <div class="status-badge">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">连接中...</span>
+            </div>
+        </div>
+
+        <!-- 服务器连接状态 -->
+        <div class="conn-status disconnected" id="connStatus">
+            <span>⏳</span>
+            <span id="connText">正在连接服务器...</span>
+        </div>
+
+        <!-- 客户端列表 -->
+        <div class="section-title">
+            已连接的展示端 <span class="count" id="clientCount">0</span>
+        </div>
+        <div class="client-list" id="clientList">
+            <div class="empty-clients" id="emptyClients">
+                <span class="icon">📡</span>
+                暂无展示端连接，请先打开展示端页面
+            </div>
+        </div>
+
+        <!-- 推送表单 -->
+        <div class="push-form">
+            <div class="target-info" id="targetInfo">
+                <span>🎯</span>
+                <span id="targetText">请在上方选择推送目标</span>
+            </div>
+
+            <div class="input-group">
+                <label>🔗 二维码内容（链接/文本）</label>
+                <textarea id="contentInput" placeholder="粘贴您的链接，例如：https://example.com/register?id=12345"></textarea>
+            </div>
+
+            <div class="input-group">
+                <label>📝 展示标题（可选）</label>
+                <input id="titleInput" type="text" placeholder="例如：请扫码完成注册" />
+            </div>
+
+            <div class="input-group">
+                <label>💬 副标题说明（可选）</label>
+                <input id="subtitleInput" type="text" placeholder="例如：扫描二维码进入注册页面" />
+            </div>
+
+            <div class="btn-row">
+                <button class="btn-push" id="pushBtn" disabled>📤 推送到选中</button>
+                <button class="btn-push-all" id="pushAllBtn">📡 推送到全部</button>
+            </div>
+            <div class="btn-row" style="margin-top: 8px;">
+                <button class="btn-clear" id="clearBtn">🗑️ 清空选中</button>
+                <button class="btn-danger" id="clearAllBtn">🧹 清空全部</button>
+            </div>
+        </div>
+
+        <!-- 日志 -->
+        <div class="log-area" id="logContainer">
+            <div class="empty-state">等待操作，推送记录将显示在这里。</div>
+        </div>
+
+        <div class="tip">
+            💡 提示：展示端输入手机号注册后，后台即可看到在线列表。<br/>
+            点击手机号卡片选中后，可定向推送不同的二维码内容。
+        </div>
+    </div>
+
+    <!-- Toast 容器 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        (function() {
+            // ==================== 配置 ====================
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = wsProtocol + '//' + location.host + '/ws';
+            const REMINDER_INTERVAL_MS = 5000;
+
+            // ==================== DOM ====================
+            const clientList = document.getElementById('clientList');
+            const clientCount = document.getElementById('clientCount');
+            const emptyClients = document.getElementById('emptyClients');
+            const targetInfo = document.getElementById('targetInfo');
+            const targetText = document.getElementById('targetText');
+            const contentInput = document.getElementById('contentInput');
+            const titleInput = document.getElementById('titleInput');
+            const subtitleInput = document.getElementById('subtitleInput');
+            const pushBtn = document.getElementById('pushBtn');
+            const pushAllBtn = document.getElementById('pushAllBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const clearAllBtn = document.getElementById('clearAllBtn');
+            const logContainer = document.getElementById('logContainer');
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            const connStatus = document.getElementById('connStatus');
+            const connText = document.getElementById('connText');
+            const toastContainer = document.getElementById('toastContainer');
+
+            // ==================== 状态 ====================
+            let ws = null;
+            let clients = {};   // { clientId: { name, phone, online, registeredAt, currentContent } }
+            let selectedClientId = null;
+            let reconnectTimer = null;
+            let audioCtx = null;
+            let reminderInterval = null;
+
+            // ==================== 提示音 ====================
+            function ensureAudioContext() {
+                if (!audioCtx) {
+                    try {
+                        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    } catch(e) { return null; }
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                return audioCtx;
+            }
+
+            function activateAudioOnInteraction() {
+                ensureAudioContext();
+                document.removeEventListener('click', activateAudioOnInteraction);
+                document.removeEventListener('keydown', activateAudioOnInteraction);
+                document.removeEventListener('touchstart', activateAudioOnInteraction);
+            }
+            document.addEventListener('click', activateAudioOnInteraction);
+            document.addEventListener('keydown', activateAudioOnInteraction);
+            document.addEventListener('touchstart', activateAudioOnInteraction);
+
+            function playNotificationSound() {
+                try {
+                    const ctx = ensureAudioContext();
+                    if (!ctx) return;
+                    const notes = [
+                        { freq: 880,  start: 0,    duration: 0.12 },
+                        { freq: 1100, start: 0.15,  duration: 0.12 },
+                        { freq: 1320, start: 0.30,  duration: 0.3  },
+                    ];
+                    notes.forEach(n => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.value = n.freq;
+                        gain.gain.setValueAtTime(0.4, ctx.currentTime + n.start);
+                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + n.start + n.duration);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(ctx.currentTime + n.start);
+                        osc.stop(ctx.currentTime + n.start + n.duration + 0.05);
+                    });
+                } catch(e) {}
+            }
+
+            // ==================== 未推送持续提醒 ====================
+            function hasUnpushedClients() {
+                return Object.values(clients).some(c => c.online && !c.currentContent);
+            }
+
+            function updateReminder() {
+                if (hasUnpushedClients()) {
+                    if (!reminderInterval) {
+                        playNotificationSound();
+                        reminderInterval = setInterval(() => {
+                            if (hasUnpushedClients()) {
+                                playNotificationSound();
+                            } else {
+                                clearInterval(reminderInterval);
+                                reminderInterval = null;
+                            }
+                        }, REMINDER_INTERVAL_MS);
+                    }
+                } else {
+                    if (reminderInterval) {
+                        clearInterval(reminderInterval);
+                        reminderInterval = null;
+                    }
+                }
+            }
+
+            // ==================== WebSocket ====================
+            function connectWS() {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    updateConnStatus(true);
+                    // 注册为管理端
+                    ws.send(JSON.stringify({ type: 'admin_register' }));
+                    addLog('✅ 已连接服务器');
+                };
+
+                ws.onmessage = (event) => {
+                    let msg;
+                    try { msg = JSON.parse(event.data); } catch(e) { return; }
+                    if (!msg) return;
+
+                    switch (msg.type) {
+                        case 'client_list': {
+                            // 初始化客户端列表
+                            clients = {};
+                            for (const c of msg.clients) {
+                                clients[c.clientId] = {
+                                    name: c.name || c.phone || c.clientId,
+                                    phone: c.phone || '',
+                                    online: true,
+                                    registeredAt: c.registeredAt,
+                                    currentContent: c.currentContent || '',
+                                };
+                            }
+                            renderClientList();
+                            updateHeaderStatus();
+                            break;
+                        }
+                        case 'client_joined': {
+                            const isNew = !clients[msg.clientId];
+                            clients[msg.clientId] = {
+                                name: msg.name || msg.phone || msg.clientId,
+                                phone: msg.phone || '',
+                                online: true,
+                                registeredAt: msg.registeredAt || Date.now(),
+                                currentContent: msg.currentContent || '',
+                            };
+                            renderClientList();
+                            updateHeaderStatus();
+                            playNotificationSound();
+                            addLog('🟢 展示端上线: ' + (msg.name || msg.clientId));
+                            updateReminder();
+                            break;
+                        }
+                        case 'client_left': {
+                            if (clients[msg.clientId]) {
+                                clients[msg.clientId].online = false;
+                                addLog('⚫ 展示端离线: ' + clients[msg.clientId].name);
+                            }
+                            renderClientList();
+                            updateHeaderStatus();
+                            updateReminder();
+                            break;
+                        }
+                        case 'client_updated': {
+                            if (msg.clientId === 'all') {
+                                for (const id of Object.keys(clients)) {
+                                    clients[id].currentContent = msg.currentContent || '';
+                                }
+                            } else if (clients[msg.clientId]) {
+                                clients[msg.clientId].currentContent = msg.currentContent || '';
+                            }
+                            renderClientList();
+                            updateReminder();
+                            break;
+                        }
+                    }
+                };
+
+                ws.onclose = () => {
+                    updateConnStatus(false);
+                    addLog('⚠️ 与服务器断开，5秒后重连...');
+                    reconnectTimer = setTimeout(connectWS, 5000);
+                };
+
+                ws.onerror = () => {
+                    ws.close();
+                };
+            }
+
+            function updateConnStatus(connected) {
+                if (connected) {
+                    connStatus.className = 'conn-status connected';
+                    connStatus.innerHTML = '<span>🟢</span><span>服务器已连接</span>';
+                } else {
+                    connStatus.className = 'conn-status disconnected';
+                    connStatus.innerHTML = '<span>🔴</span><span>服务器断开，重连中...</span>';
+                }
+            }
+
+            // ==================== Toast 提示 ====================
+            function showToast(message, type = 'info') {
+                const toast = document.createElement('div');
+                toast.className = 'toast ' + type;
+                const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+                toast.textContent = icon + ' ' + message;
+                toastContainer.appendChild(toast);
+                setTimeout(() => {
+                    if (toast.parentNode) toast.remove();
+                }, 3000);
+            }
+
+            // ==================== 日志 ====================
+            function addLog(message, target) {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('zh-CN', { hour12: false });
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                let html = `<span class="log-time">${timeStr}</span>`;
+                if (target) {
+                    html += `<span class="log-target">[${target}]</span>`;
+                }
+                html += ` ${message}`;
+                entry.innerHTML = html;
+
+                if (logContainer.querySelector('.empty-state')) {
+                    logContainer.innerHTML = '';
+                }
+                logContainer.prepend(entry);
+                while (logContainer.children.length > 30) {
+                    logContainer.removeChild(logContainer.lastChild);
+                }
+            }
+
+            // ==================== 客户端渲染 ====================
+            function renderClientList() {
+                const clientIds = Object.keys(clients);
+                const onlineCount = clientIds.filter(id => clients[id].online).length;
+                clientCount.textContent = onlineCount;
+
+                if (clientIds.length === 0) {
+                    clientList.innerHTML = '';
+                    clientList.appendChild(emptyClients);
+                    emptyClients.style.display = 'block';
+                    selectedClientId = null;
+                    updateTargetInfo();
+                    return;
+                }
+
+                emptyClients.style.display = 'none';
+
+                const sorted = clientIds.sort((a, b) => {
+                    const aOnline = clients[a].online ? 0 : 1;
+                    const bOnline = clients[b].online ? 0 : 1;
+                    if (aOnline !== bOnline) return aOnline - bOnline;
+                    return (clients[a].registeredAt || 0) - (clients[b].registeredAt || 0);
+                });
+
+                clientList.innerHTML = '';
+                for (const id of sorted) {
+                    const c = clients[id];
+                    const card = document.createElement('div');
+                    card.className = 'client-card' + (selectedClientId === id ? ' selected' : '');
+                    card.dataset.clientId = id;
+
+                    const displayName = c.name || c.phone || id.slice(-8);
+                    card.innerHTML = `
+                        <div class="client-avatar">📱</div>
+                        <div class="client-info">
+                            <div class="client-name">${escapeHtml(displayName)}</div>
+                            <div class="client-meta">${c.online ? '🟢 在线' : '⚫ 离线'} · ID: ${id.slice(-8)}</div>
+                            ${c.currentContent ? '<div class="client-current">📄 ' + escapeHtml(c.currentContent.substring(0, 30)) + '</div>' : ''}
+                        </div>
+                        <div class="client-status-indicator ${c.online ? 'online' : 'offline'}"></div>
+                    `;
+
+                    card.addEventListener('click', () => {
+                        selectClient(id);
+                    });
+
+                    clientList.appendChild(card);
+                }
+            }
+
+            function selectClient(id) {
+                if (selectedClientId === id) {
+                    selectedClientId = null;
+                } else {
+                    selectedClientId = id;
+                }
+                renderClientList();
+                updateTargetInfo();
+            }
+
+            function updateTargetInfo() {
+                if (selectedClientId && clients[selectedClientId]) {
+                    const name = clients[selectedClientId].name || selectedClientId;
+                    targetText.textContent = `推送到：${name}`;
+                    pushBtn.disabled = false;
+                    pushBtn.textContent = '📤 推送到 ' + name;
+                } else {
+                    targetText.textContent = '请在上方选择推送目标';
+                    pushBtn.disabled = true;
+                    pushBtn.textContent = '📤 推送到选中';
+                }
+            }
+
+            function updateHeaderStatus() {
+                const onlineCount = Object.values(clients).filter(c => c.online).length;
+                if (onlineCount > 0) {
+                    statusDot.className = 'status-dot online';
+                    statusText.textContent = onlineCount + ' 个展示端在线';
+                } else {
+                    statusDot.className = 'status-dot';
+                    statusText.textContent = '无展示端在线';
+                }
+            }
+
+            function escapeHtml(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            // ==================== 推送逻辑 ====================
+            function pushToClient(targetId, content, title, subtitle) {
+                if (!ws || ws.readyState !== 1) {
+                    showToast('未连接服务器，请稍后重试', 'error');
+                    return;
+                }
+
+                ws.send(JSON.stringify({
+                    type: 'push',
+                    targetClient: targetId,
+                    payload: {
+                        content: content,
+                        title: title || content,
+                        subtitle: subtitle || '',
+                        timestamp: Date.now(),
+                    }
+                }));
+
+                // 本地更新状态
+                if (targetId !== 'all' && clients[targetId]) {
+                    clients[targetId].currentContent = content;
+                } else if (targetId === 'all') {
+                    for (const id of Object.keys(clients)) {
+                        clients[id].currentContent = content;
+                    }
+                }
+
+                const targetName = targetId === 'all' ? '全部' : (clients[targetId] ? clients[targetId].name : targetId);
+                addLog(`📤 已推送: ${title || content.substring(0, 25)}`, targetName);
+                renderClientList();
+                updateReminder();
+            }
+
+            function clearClient(targetId) {
+                if (!ws || ws.readyState !== 1) {
+                    showToast('未连接服务器，请稍后重试', 'error');
+                    return;
+                }
+
+                ws.send(JSON.stringify({
+                    type: 'clear',
+                    targetClient: targetId,
+                }));
+
+                if (targetId !== 'all' && clients[targetId]) {
+                    clients[targetId].currentContent = '';
+                } else if (targetId === 'all') {
+                    for (const id of Object.keys(clients)) {
+                        clients[id].currentContent = '';
+                    }
+                }
+
+                const targetName = targetId === 'all' ? '全部' : (clients[targetId] ? clients[targetId].name : targetId);
+                addLog('🗑️ 已清空', targetName);
+                renderClientList();
+                updateReminder();
+            }
+
+            // ==================== 事件绑定 ====================
+            pushBtn.addEventListener('click', () => {
+                const content = contentInput.value.trim();
+                if (!content) {
+                    showToast('请输入二维码内容', 'error');
+                    return;
+                }
+                if (!selectedClientId) {
+                    showToast('请先选择推送目标', 'error');
+                    return;
+                }
+                pushToClient(selectedClientId, content, titleInput.value.trim(), subtitleInput.value.trim());
+                showToast('推送成功', 'success');
+            });
+
+            pushAllBtn.addEventListener('click', () => {
+                const content = contentInput.value.trim();
+                if (!content) {
+                    showToast('请输入二维码内容', 'error');
+                    return;
+                }
+                pushToClient('all', content, titleInput.value.trim(), subtitleInput.value.trim());
+                showToast('已推送到全部展示端', 'success');
+            });
+
+            clearBtn.addEventListener('click', () => {
+                if (!selectedClientId) {
+                    showToast('请先选择要清空的展示端', 'error');
+                    return;
+                }
+                clearClient(selectedClientId);
+                showToast('已清空选中展示端', 'success');
+            });
+
+            clearAllBtn.addEventListener('click', () => {
+                clearClient('all');
+                showToast('已清空全部展示端', 'success');
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    if (selectedClientId && contentInput.value.trim()) {
+                        pushBtn.click();
+                    } else if (contentInput.value.trim()) {
+                        pushAllBtn.click();
+                    }
+                }
+            });
+
+            // ==================== 启动 ====================
+            connectWS();
+            addLog('🟢 管理端已就绪');
+
+            window.addEventListener('beforeunload', () => {
+                if (reconnectTimer) clearTimeout(reconnectTimer);
+                if (reminderInterval) clearInterval(reminderInterval);
+                if (ws) ws.close();
+            });
+        })();
+    </script>
+</body>
+</html>

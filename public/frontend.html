@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>扫码展示</title>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --card: #15161f;
+            --border: #2a2b3a;
+            --accent: #4f7cff;
+            --text: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --success: #22c55e;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* ========== 注册面板 ========== */
+        .setup-panel {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px 28px;
+            width: 90%;
+            max-width: 360px;
+            text-align: center;
+            animation: fadeIn 0.4s ease;
+        }
+        .setup-icon { font-size: 2.5rem; margin-bottom: 12px; }
+        .setup-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .setup-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+        .phone-input {
+            width: 100%;
+            padding: 14px 18px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 1.1rem;
+            outline: none;
+            text-align: center;
+            letter-spacing: 2px;
+            transition: border-color 0.2s;
+        }
+        .phone-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(79,124,255,0.15);
+        }
+        .phone-input.error {
+            border-color: #ef4444;
+            animation: shake 0.4s ease;
+        }
+        .error-msg {
+            color: #ef4444;
+            font-size: 0.8rem;
+            margin-top: 8px;
+            min-height: 1.2em;
+        }
+        .setup-btn {
+            width: 100%;
+            padding: 14px;
+            margin-top: 16px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .setup-btn:hover { opacity: 0.9; }
+        .setup-btn:active { transform: scale(0.98); }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-8px); }
+            40% { transform: translateX(8px); }
+            60% { transform: translateX(-5px); }
+            80% { transform: translateX(5px); }
+        }
+
+        /* ========== 展示面板 ========== */
+        .display-panel {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            width: 100%;
+            padding: 20px;
+        }
+        .display-panel.active { display: flex; }
+
+        .user-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+        .user-badge .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        .qr-container {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            animation: qrIn 0.5s ease;
+        }
+        .qr-container img {
+            display: block;
+            width: 280px;
+            height: 280px;
+            border-radius: 4px;
+        }
+
+        @keyframes qrIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .waiting-hint {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 24px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        /* ========== Toast ========== */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            z-index: 100;
+            animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+        }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        @keyframes toastOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 注册面板 -->
+    <div class="setup-panel" id="setupPanel">
+        <div class="setup-icon">📱</div>
+        <div class="setup-title">欢迎扫码</div>
+        <div class="setup-desc">请输入您的手机号完成注册<br/>即可接收专属二维码</div>
+        <input type="tel" class="phone-input" id="phoneInput" placeholder="请输入手机号" maxlength="11" inputmode="numeric" pattern="[0-9]*" />
+        <div class="error-msg" id="errorMsg"></div>
+        <button class="setup-btn" id="registerBtn">确认注册</button>
+    </div>
+
+    <!-- 展示面板 -->
+    <div class="display-panel" id="displayPanel">
+        <div class="user-badge">
+            <span class="dot"></span>
+            <span id="userPhone"></span>
+        </div>
+        <div class="qr-container" id="qrContainer" style="display:none;">
+            <img id="qrImage" src="" alt="二维码" />
+        </div>
+        <div class="waiting-hint" id="waitingHint">等待推送中...</div>
+    </div>
+
+    <script>
+        (function() {
+            // ==================== 配置 ====================
+            // 自动检测 WebSocket 地址
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = wsProtocol + '//' + location.host + '/ws';
+
+            // ==================== DOM ====================
+            const setupPanel = document.getElementById('setupPanel');
+            const displayPanel = document.getElementById('displayPanel');
+            const phoneInput = document.getElementById('phoneInput');
+            const errorMsg = document.getElementById('errorMsg');
+            const registerBtn = document.getElementById('registerBtn');
+            const userPhone = document.getElementById('userPhone');
+            const qrContainer = document.getElementById('qrContainer');
+            const qrImage = document.getElementById('qrImage');
+            const waitingHint = document.getElementById('waitingHint');
+
+            // ==================== 状态 ====================
+            let ws = null;
+            let clientId = null;
+            let phoneNumber = '';
+            let reconnectTimer = null;
+
+            // ==================== WebSocket ====================
+            function connectWS() {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    console.log('[WS] 已连接');
+                    if (clientId && phoneNumber) {
+                        // 重连时重新注册
+                        ws.send(JSON.stringify({
+                            type: 'register',
+                            clientId: clientId,
+                            phone: phoneNumber,
+                            clientName: phoneNumber,
+                        }));
+                    }
+                };
+
+                ws.onmessage = (event) => {
+                    let msg;
+                    try { msg = JSON.parse(event.data); } catch(e) { return; }
+                    if (!msg) return;
+
+                    if (msg.type === 'register_ack') {
+                        clientId = msg.clientId;
+                        console.log('[WS] 注册成功, clientId:', clientId);
+                    } else if (msg.type === 'push') {
+                        // 收到推送，展示二维码
+                        showQR(msg.payload);
+                    } else if (msg.type === 'clear') {
+                        // 清空二维码
+                        hideQR();
+                    }
+                };
+
+                ws.onclose = () => {
+                    console.log('[WS] 断开，3秒后重连...');
+                    reconnectTimer = setTimeout(connectWS, 3000);
+                };
+
+                ws.onerror = () => {
+                    ws.close();
+                };
+
+                // 心跳
+                setInterval(() => {
+                    if (ws && ws.readyState === 1) {
+                        ws.ping && ws.ping();
+                    }
+                }, 10000);
+            }
+
+            // ==================== 注册 ====================
+            function maskPhone(phone) {
+                if (phone.length === 11) {
+                    return phone.substring(0, 3) + '****' + phone.substring(7);
+                }
+                return phone;
+            }
+
+            registerBtn.addEventListener('click', doRegister);
+            phoneInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') doRegister();
+            });
+
+            // 只允许输入数字
+            phoneInput.addEventListener('input', () => {
+                phoneInput.value = phoneInput.value.replace(/\D/g, '').slice(0, 11);
+                errorMsg.textContent = '';
+                phoneInput.classList.remove('error');
+            });
+
+            function doRegister() {
+                const phone = phoneInput.value.trim();
+                if (!/^1[3-9]\d{9}$/.test(phone)) {
+                    errorMsg.textContent = '请输入正确的11位手机号';
+                    phoneInput.classList.add('error');
+                    setTimeout(() => phoneInput.classList.remove('error'), 500);
+                    return;
+                }
+
+                phoneNumber = phone;
+                clientId = 'c_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 8);
+
+                // 发送注册消息
+                if (ws && ws.readyState === 1) {
+                    ws.send(JSON.stringify({
+                        type: 'register',
+                        clientId: clientId,
+                        phone: phoneNumber,
+                        clientName: phoneNumber,
+                    }));
+                }
+
+                // 切换到展示面板
+                setupPanel.style.display = 'none';
+                displayPanel.classList.add('active');
+                userPhone.textContent = maskPhone(phoneNumber);
+            }
+
+            // ==================== 二维码展示 ====================
+            function generateQRUrl(data, size) {
+                const encoded = encodeURIComponent(data);
+                return 'https://api.qrserver.com/v1/create-qr-code/?size=' + size + 'x' + size + '&data=' + encoded + '&margin=10&bgcolor=ffffff&color=000000';
+            }
+
+            function showQR(payload) {
+                const content = payload.content || '';
+                if (!content) return;
+
+                qrImage.src = generateQRUrl(content, 280);
+                qrContainer.style.display = 'block';
+                waitingHint.style.display = 'none';
+
+                // 添加动画
+                qrContainer.style.animation = 'none';
+                qrContainer.offsetHeight; // 触发 reflow
+                qrContainer.style.animation = 'qrIn 0.5s ease';
+            }
+
+            function hideQR() {
+                qrContainer.style.display = 'none';
+                waitingHint.style.display = 'block';
+            }
+
+            // ==================== 启动 ====================
+            connectWS();
+
+            window.addEventListener('beforeunload', () => {
+                if (reconnectTimer) clearTimeout(reconnectTimer);
+                if (ws) ws.close();
+            });
+        })();
+    </script>
+</body>
+</html>
