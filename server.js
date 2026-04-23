@@ -9,8 +9,8 @@ const PORT = process.env.PORT || 3000;
 const HISTORY_FILE = path.join(__dirname, 'push_history.json');
 
 // ==================== 管理员账号配置 ====================
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'qrcode2024';
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'q188288';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'qwe123123';
 
 // 登录令牌存储（内存）
 const adminTokens = new Set();  // 有效token集合
