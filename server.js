@@ -59,7 +59,6 @@ app.post('/admin-login', (req, res) => {
     const { username, password } = req.body || {};
     if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
         const token = generateToken();
-        adminTokens.add(token);
         console.log(`[登录] 管理员登录成功, token: ${token.substring(0, 8)}...`);
         res.json({ success: true, token });
     } else {
