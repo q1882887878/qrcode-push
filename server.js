@@ -2,8 +2,10 @@ const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
 const path = require('path');
+const fs = require('fs');
 
 const PORT = process.env.PORT || 3000;
+const HISTORY_FILE = path.join(__dirname, 'push_history.json');
 
 // ==================== Express 静态文件 ====================
 const app = express();
@@ -25,7 +27,33 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 // 状态管理
 const frontendClients = new Map();  // clientId -> { ws, name, online, registeredAt, currentContent }
 const adminSockets = new Set();     // 管理端 WebSocket 连接
-const pushHistory = [];             // 已推送记录 [{ phone, content, time, targetId }]
+
+// 推送历史 - 从文件加载已完成的记录
+let pushHistory = [];
+try {
+    if (fs.existsSync(HISTORY_FILE)) {
+        const data = fs.readFileSync(HISTORY_FILE, 'utf-8');
+        pushHistory = JSON.parse(data);
+    }
+} catch (e) {
+    console.warn('[历史] 读取历史文件失败，使用空列表', e.message);
+    pushHistory = [];
+}
+
+// 保存已完成的记录到文件
+function saveCompletedHistory() {
+    try {
+        const completed = pushHistory.filter(h => h.status === 'completed');
+        fs.writeFileSync(HISTORY_FILE, JSON.stringify(completed, null, 2), 'utf-8');
+    } catch (e) {
+        console.warn('[历史] 保存历史文件失败', e.message);
+    }
+}
+
+// 生成记录ID
+function generateHistoryId() {
+    return 'h_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+}
 
 wss.on('connection', (ws) => {
     ws.isAlive = true;
@@ -128,10 +156,12 @@ wss.on('connection', (ws) => {
                         // 每个客户端记录一条
                         if (info.phone) {
                             pushHistory.push({
+                                id: generateHistoryId(),
                                 phone: info.phone,
                                 content: payload.content || '',
                                 time: Date.now(),
                                 targetId: id,
+                                status: 'pending',
                             });
                         }
                     }
@@ -147,10 +177,12 @@ wss.on('connection', (ws) => {
                     }
                     if (target && target.phone) {
                         pushHistory.push({
+                            id: generateHistoryId(),
                             phone: target.phone,
                             content: payload.content || '',
                             time: Date.now(),
                             targetId: targetId,
+                            status: 'pending',
                         });
                     }
                 }
@@ -194,6 +226,39 @@ wss.on('connection', (ws) => {
                     currentContent: '',
                 });
                 console.log(`[清空] → ${clearId === 'all' ? '全部' : clearId.slice(-8)}`);
+                break;
+            }
+
+            // ============ 历史记录：标记已完成 ============
+            case 'history_complete': {
+                const hid = msg.historyId;
+                const item = pushHistory.find(h => h.id === hid);
+                if (item) {
+                    item.status = 'completed';
+                    item.completedAt = Date.now();
+                    saveCompletedHistory();
+                    broadcastToAdmins({
+                        type: 'push_history_update',
+                        history: pushHistory,
+                    });
+                    console.log(`[历史] 已完成: ${item.phone}`);
+                }
+                break;
+            }
+
+            // ============ 历史记录：删除 ============
+            case 'history_delete': {
+                const delId = msg.historyId;
+                const delIdx = pushHistory.findIndex(h => h.id === delId);
+                if (delIdx !== -1) {
+                    const removed = pushHistory.splice(delIdx, 1)[0];
+                    saveCompletedHistory();
+                    broadcastToAdmins({
+                        type: 'push_history_update',
+                        history: pushHistory,
+                    });
+                    console.log(`[历史] 已删除: ${removed.phone}`);
+                }
                 break;
             }
         }

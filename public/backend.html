@@ -320,7 +320,7 @@
             border-radius: 12px;
             border: 1px solid var(--border);
             padding: 14px 16px;
-            max-height: 200px;
+            max-height: 300px;
             overflow-y: auto;
             margin-bottom: 16px;
         }
@@ -330,11 +330,33 @@
             justify-content: space-between;
             padding: 8px 0;
             border-bottom: 1px solid rgba(255,255,255,0.04);
+            gap: 8px;
         }
         .history-item:last-child { border-bottom: none; }
+        .history-item.completed {
+            opacity: 0.65;
+        }
+        .history-item.completed .history-phone::after {
+            content: '';
+        }
+        .history-left {
+            flex: 1;
+            min-width: 0;
+        }
         .history-phone {
             font-weight: 600;
             font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .history-phone .completed-badge {
+            background: rgba(34,197,94,0.15);
+            color: var(--success);
+            font-size: 0.65rem;
+            padding: 1px 6px;
+            border-radius: 6px;
+            font-weight: 500;
         }
         .history-meta {
             font-size: 0.75rem;
@@ -348,6 +370,54 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+        .history-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .history-actions button {
+            padding: 4px 10px;
+            font-size: 0.72rem;
+            font-weight: 500;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.15s;
+            flex: none;
+        }
+        .btn-complete {
+            background: rgba(34,197,94,0.12);
+            color: var(--success);
+            border: 1px solid rgba(34,197,94,0.2) !important;
+        }
+        .btn-complete:hover {
+            background: rgba(34,197,94,0.25);
+        }
+        .btn-delete-record {
+            background: rgba(239,68,68,0.1);
+            color: var(--danger);
+            border: 1px solid rgba(239,68,68,0.2) !important;
+        }
+        .btn-delete-record:hover {
+            background: rgba(239,68,68,0.2);
+        }
+        .history-divider {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            padding: 6px 0 4px;
+            margin-top: 4px;
+            border-top: 1px dashed var(--border);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .history-divider .count-badge {
+            background: rgba(34,197,94,0.12);
+            color: var(--success);
+            font-size: 0.65rem;
+            padding: 0px 6px;
+            border-radius: 6px;
         }
 
         /* 连接状态 */
@@ -831,6 +901,8 @@
             function renderPushHistory() {
                 const container = document.getElementById('historyContainer');
                 const countEl = document.getElementById('pushHistoryCount');
+                const pending = pushHistory.filter(h => h.status !== 'completed');
+                const completed = pushHistory.filter(h => h.status === 'completed');
                 countEl.textContent = pushHistory.length;
 
                 if (pushHistory.length === 0) {
@@ -838,22 +910,77 @@
                     return;
                 }
 
-                // 按时间倒序
-                const sorted = [...pushHistory].reverse();
                 container.innerHTML = '';
-                for (const item of sorted) {
-                    const el = document.createElement('div');
-                    el.className = 'history-item';
-                    const timeStr = new Date(item.time).toLocaleTimeString('zh-CN', { hour12: false });
-                    el.innerHTML = `
-                        <div>
-                            <div class="history-phone">${escapeHtml(item.phone)}</div>
-                            <div class="history-content">${escapeHtml((item.content || '').substring(0, 40))}</div>
-                        </div>
-                        <div class="history-meta">${timeStr}</div>
-                    `;
-                    container.appendChild(el);
+
+                // 待处理记录（倒序）
+                if (pending.length > 0) {
+                    const sortedPending = [...pending].reverse();
+                    for (const item of sortedPending) {
+                        const el = document.createElement('div');
+                        el.className = 'history-item';
+                        const timeStr = new Date(item.time).toLocaleTimeString('zh-CN', { hour12: false });
+                        el.innerHTML = `
+                            <div class="history-left">
+                                <div class="history-phone">${escapeHtml(item.phone)}</div>
+                                <div class="history-content">${escapeHtml((item.content || '').substring(0, 40))}</div>
+                            </div>
+                            <div class="history-actions">
+                                <button class="btn-complete" data-id="${item.id}">已完成</button>
+                                <button class="btn-delete-record" data-id="${item.id}">删除</button>
+                            </div>
+                            <div class="history-meta">${timeStr}</div>
+                        `;
+                        container.appendChild(el);
+                    }
                 }
+
+                // 已完成记录（倒序）
+                if (completed.length > 0) {
+                    const divider = document.createElement('div');
+                    divider.className = 'history-divider';
+                    divider.innerHTML = `<span>已完成</span><span class="count-badge">${completed.length}</span>`;
+                    container.appendChild(divider);
+
+                    const sortedCompleted = [...completed].reverse();
+                    for (const item of sortedCompleted) {
+                        const el = document.createElement('div');
+                        el.className = 'history-item completed';
+                        const timeStr = new Date(item.time).toLocaleTimeString('zh-CN', { hour12: false });
+                        el.innerHTML = `
+                            <div class="history-left">
+                                <div class="history-phone">${escapeHtml(item.phone)} <span class="completed-badge">已完成</span></div>
+                                <div class="history-content">${escapeHtml((item.content || '').substring(0, 40))}</div>
+                            </div>
+                            <div class="history-actions">
+                                <button class="btn-delete-record" data-id="${item.id}">删除</button>
+                            </div>
+                            <div class="history-meta">${timeStr}</div>
+                        `;
+                        container.appendChild(el);
+                    }
+                }
+
+                // 绑定按钮事件
+                container.querySelectorAll('.btn-complete').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = btn.getAttribute('data-id');
+                        if (ws && ws.readyState === 1) {
+                            ws.send(JSON.stringify({ type: 'history_complete', historyId: id }));
+                            showToast('已标记完成', 'success');
+                        }
+                    });
+                });
+                container.querySelectorAll('.btn-delete-record').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = btn.getAttribute('data-id');
+                        if (ws && ws.readyState === 1) {
+                            ws.send(JSON.stringify({ type: 'history_delete', historyId: id }));
+                            showToast('已删除记录', 'success');
+                        }
+                    });
+                });
             }
 
             // ==================== 推送逻辑 ====================
