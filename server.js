@@ -11,18 +11,33 @@ const HISTORY_FILE = path.join(__dirname, 'push_history.json');
 // ==================== 管理员账号配置 ====================
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'q188288';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'qwe123123';
+const TOKEN_SECRET = process.env.TOKEN_SECRET || 'qrcode_push_secret_2024';
 
-// 登录令牌存储（内存）
-const adminTokens = new Set();  // 有效token集合
-
-// 生成登录令牌
+// 生成签名token（自包含，服务器重启后仍有效）
 function generateToken() {
-    return crypto.randomBytes(32).toString('hex');
+    const payload = {
+        user: ADMIN_USERNAME,
+        ts: Date.now(),
+        nonce: crypto.randomBytes(8).toString('hex'),
+    };
+    const data = JSON.stringify(payload);
+    const sig = crypto.createHmac('sha256', TOKEN_SECRET).update(data).digest('hex');
+    return Buffer.from(JSON.stringify({ p: payload, s: sig })).toString('base64');
 }
 
-// 验证令牌
+// 验证token
 function verifyToken(token) {
-    return adminTokens.has(token);
+    try {
+        const decoded = JSON.parse(Buffer.from(token, 'base64').toString());
+        const data = JSON.stringify(decoded.p);
+        const sig = crypto.createHmac('sha256', TOKEN_SECRET).update(data).digest('hex');
+        if (sig !== decoded.s) return false;
+        // token有效期30天
+        if (Date.now() - decoded.p.ts > 30 * 24 * 60 * 60 * 1000) return false;
+        return decoded.p.user === ADMIN_USERNAME;
+    } catch (e) {
+        return false;
+    }
 }
 
 // ==================== Express 静态文件 ====================

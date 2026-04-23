@@ -919,7 +919,7 @@
                             adminToken = '';
                             localStorage.removeItem(TOKEN_KEY);
                             loginOverlay.classList.remove('hidden');
-                            loginError.textContent = '登录已过期，请重新登录';
+                            loginError.textContent = '';
                             if (ws) ws.close();
                             break;
                         }
