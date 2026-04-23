@@ -3,13 +3,34 @@ const http = require('http');
 const { WebSocketServer } = require('ws');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
 const HISTORY_FILE = path.join(__dirname, 'push_history.json');
 
+// ==================== 管理员账号配置 ====================
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'qrcode2024';
+
+// 登录令牌存储（内存）
+const adminTokens = new Set();  // 有效token集合
+
+// 生成登录令牌
+function generateToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
+
+// 验证令牌
+function verifyToken(token) {
+    return adminTokens.has(token);
+}
+
 // ==================== Express 静态文件 ====================
 const app = express();
 const server = http.createServer(app);
+
+// 解析 JSON 请求体
+app.use(express.json());
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -17,6 +38,32 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'frontend.html'));
 });
+
+// 登录接口
+app.post('/admin-login', (req, res) => {
+    const { username, password } = req.body || {};
+    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+        const token = generateToken();
+        adminTokens.add(token);
+        console.log(`[登录] 管理员登录成功, token: ${token.substring(0, 8)}...`);
+        res.json({ success: true, token });
+    } else {
+        console.log(`[登录] 登录失败, 用户名: ${username}`);
+        res.json({ success: false, message: '用户名或密码错误' });
+    }
+});
+
+// 验证token接口
+app.post('/admin-verify', (req, res) => {
+    const { token } = req.body || {};
+    if (token && verifyToken(token)) {
+        res.json({ success: true });
+    } else {
+        res.json({ success: false });
+    }
+});
+
+// 后台页面
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'backend.html'));
 });
@@ -107,7 +154,16 @@ wss.on('connection', (ws) => {
 
             // ============ 管理端注册 ============
             case 'admin_register': {
+                // 验证token
+                const token = msg.token;
+                if (!token || !verifyToken(token)) {
+                    ws.send(JSON.stringify({ type: 'auth_failed', message: '认证失败，请重新登录' }));
+                    ws.close();
+                    console.log('[管理端] 认证失败，连接已关闭');
+                    return;
+                }
                 ws.role = 'admin';
+                ws.adminToken = token;
                 adminSockets.add(ws);
 
                 // 回复当前所有在线前端客户端
