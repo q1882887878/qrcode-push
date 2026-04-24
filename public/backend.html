@@ -150,14 +150,6 @@
         .client-status-indicator.offline {
             background: #555;
         }
-        .client-current {
-            font-size: 0.7rem;
-            color: var(--accent);
-            margin-top: 2px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
 
         .empty-clients {
             text-align: center;
@@ -170,7 +162,7 @@
         }
         .empty-clients .icon { font-size: 2rem; margin-bottom: 8px; display: block; }
 
-        /* 推送表单 */
+        /* 推送区域 - 简化 */
         .push-form {
             background: var(--card);
             border-radius: 16px;
@@ -189,7 +181,6 @@
             font-size: 0.85rem;
             color: var(--accent);
         }
-        .target-info .arrow { font-size: 1.1rem; }
 
         .input-group { margin-bottom: 14px; }
         label {
@@ -217,7 +208,7 @@
         textarea {
             resize: vertical;
             font-family: monospace;
-            min-height: 70px;
+            min-height: 60px;
         }
 
         .btn-row {
@@ -272,6 +263,16 @@
         }
         .btn-danger:hover {
             background: rgba(239,68,68,0.2);
+        }
+
+        .paste-hint {
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--warning);
+            margin-top: 8px;
+            padding: 6px;
+            background: rgba(245,166,35,0.06);
+            border-radius: 8px;
         }
 
         /* 日志区域 */
@@ -335,9 +336,6 @@
         .history-item:last-child { border-bottom: none; }
         .history-item.completed {
             opacity: 0.65;
-        }
-        .history-item.completed .history-phone::after {
-            content: '';
         }
         .history-left {
             flex: 1;
@@ -555,6 +553,10 @@
             margin-top: 10px;
             min-height: 1.2em;
         }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -579,7 +581,7 @@
     <div class="page-container">
         <!-- 顶部 -->
         <div class="header">
-            <span class="title">📡 二维码推送控制台</span>
+            <span class="title">二维码推送控制台</span>
             <div class="status-badge">
                 <span class="status-dot" id="statusDot"></span>
                 <span id="statusText">连接中...</span>
@@ -592,46 +594,48 @@
             <span id="connText">正在连接服务器...</span>
         </div>
 
-        <!-- 客户端列表 -->
+        <!-- 客户端列表 - 只显示待推送 -->
         <div class="section-title">
-            已连接的展示端 <span class="count" id="clientCount">0</span>
+            待推送客户 <span class="count" id="clientCount">0</span>
         </div>
         <div class="client-list" id="clientList">
             <div class="empty-clients" id="emptyClients">
                 <span class="icon">📡</span>
-                暂无展示端连接，请先打开展示端页面
+                暂无待推送客户
             </div>
         </div>
 
-        <!-- 推送表单 -->
+        <!-- 推送区域 - 简化 -->
         <div class="push-form">
             <div class="target-info" id="targetInfo">
                 <span>🎯</span>
-                <span id="targetText">请在上方选择推送目标</span>
+                <span id="targetText">等待客户注册...</span>
             </div>
 
             <div class="input-group">
-                <label>🔗 二维码内容（链接/文本）</label>
-                <textarea id="contentInput" placeholder="粘贴您的链接，例如：https://example.com/register?id=12345"></textarea>
+                <label>二维码内容（粘贴即推送）</label>
+                <textarea id="contentInput" placeholder="粘贴链接或内容，自动推送到选中客户"></textarea>
             </div>
 
             <div class="input-group">
-                <label>📝 展示标题（可选）</label>
+                <label>展示标题（可选）</label>
                 <input id="titleInput" type="text" placeholder="例如：请扫码完成注册" />
             </div>
 
             <div class="input-group">
-                <label>💬 副标题说明（可选）</label>
+                <label>副标题说明（可选）</label>
                 <input id="subtitleInput" type="text" placeholder="例如：扫描二维码进入注册页面" />
             </div>
 
-            <div class="btn-row">
-                <button class="btn-push" id="pushBtn" disabled>📤 推送到选中</button>
-                <button class="btn-push-all" id="pushAllBtn">📡 推送到全部</button>
+            <div class="paste-hint">粘贴内容到上方输入框即自动推送</div>
+
+            <div class="btn-row" style="margin-top: 12px;">
+                <button class="btn-push" id="pushBtn" disabled>推送到选中</button>
+                <button class="btn-push-all" id="pushAllBtn">推送到全部</button>
             </div>
             <div class="btn-row" style="margin-top: 8px;">
-                <button class="btn-clear" id="clearBtn">🗑️ 清空选中</button>
-                <button class="btn-danger" id="clearAllBtn">🧹 清空全部</button>
+                <button class="btn-clear" id="clearBtn">清空选中</button>
+                <button class="btn-danger" id="clearAllBtn">清空全部</button>
             </div>
         </div>
 
@@ -649,8 +653,8 @@
         </div>
 
         <div class="tip">
-            💡 提示：展示端输入手机号注册后，后台即可看到在线列表。<br/>
-            点击手机号卡片选中后，可定向推送不同的二维码内容。
+            提示：客户注册后自动选中，粘贴内容即推送。<br/>
+            已推送客户从列表隐藏，客户刷新页面会重新出现。
         </div>
     </div>
 
@@ -763,7 +767,7 @@
             let reconnectTimer = null;
             let audioCtx = null;
             let reminderInterval = null;
-            let pushHistory = [];  // 已推送记录
+            let pushHistory = [];
 
             // ==================== 提示音 ====================
             function ensureAudioContext() {
@@ -813,8 +817,16 @@
             }
 
             // ==================== 未推送持续提醒 ====================
+            // 只统计在线且未推送的客户
             function hasUnpushedClients() {
-                return Object.values(clients).some(c => c.online && !c.currentContent);
+                return getUnpushedClients().length > 0;
+            }
+
+            // 获取待推送客户列表（在线 + 未推送）
+            function getUnpushedClients() {
+                return Object.entries(clients)
+                    .filter(([id, c]) => c.online && !c.currentContent)
+                    .map(([id, c]) => ({ id, ...c }));
             }
 
             function updateReminder() {
@@ -844,9 +856,8 @@
 
                 ws.onopen = () => {
                     updateConnStatus(true);
-                    // 注册为管理端（带token）
                     ws.send(JSON.stringify({ type: 'admin_register', token: adminToken }));
-                    addLog('✅ 已连接服务器');
+                    addLog('已连接服务器');
                 };
 
                 ws.onmessage = (event) => {
@@ -856,7 +867,6 @@
 
                     switch (msg.type) {
                         case 'client_list': {
-                            // 初始化客户端列表
                             clients = {};
                             for (const c of msg.clients) {
                                 clients[c.clientId] = {
@@ -869,10 +879,11 @@
                             }
                             renderClientList();
                             updateHeaderStatus();
+                            // 自动选中第一个未推送客户
+                            autoSelectFirst();
                             break;
                         }
                         case 'client_joined': {
-                            const isNew = !clients[msg.clientId];
                             clients[msg.clientId] = {
                                 name: msg.name || msg.phone || msg.clientId,
                                 phone: msg.phone || '',
@@ -883,14 +894,28 @@
                             renderClientList();
                             updateHeaderStatus();
                             playNotificationSound();
-                            addLog('🟢 展示端上线: ' + (msg.name || msg.clientId));
+                            addLog('客户上线: ' + (msg.name || msg.clientId));
+                            // 新客户进来自动选中 + 清空输入框
+                            selectedClientId = msg.clientId;
+                            contentInput.value = '';
+                            titleInput.value = '';
+                            subtitleInput.value = '';
+                            renderClientList();
+                            updateTargetInfo();
+                            // 聚焦到输入框方便粘贴
+                            contentInput.focus();
                             updateReminder();
                             break;
                         }
                         case 'client_left': {
                             if (clients[msg.clientId]) {
                                 clients[msg.clientId].online = false;
-                                addLog('⚫ 展示端离线: ' + clients[msg.clientId].name);
+                                addLog('客户离线: ' + clients[msg.clientId].name);
+                            }
+                            // 如果离线的是当前选中的，自动选中下一个
+                            if (selectedClientId === msg.clientId) {
+                                selectedClientId = null;
+                                autoSelectFirst();
                             }
                             renderClientList();
                             updateHeaderStatus();
@@ -905,6 +930,11 @@
                             } else if (clients[msg.clientId]) {
                                 clients[msg.clientId].currentContent = msg.currentContent || '';
                             }
+                            // 如果当前选中的客户已被推送，自动选中下一个未推送
+                            if (selectedClientId && clients[selectedClientId] && clients[selectedClientId].currentContent) {
+                                selectedClientId = null;
+                                autoSelectFirst();
+                            }
                             renderClientList();
                             updateReminder();
                             break;
@@ -915,7 +945,6 @@
                             break;
                         }
                         case 'auth_failed': {
-                            // token失效，退回登录
                             adminToken = '';
                             localStorage.removeItem(TOKEN_KEY);
                             loginOverlay.classList.remove('hidden');
@@ -928,7 +957,7 @@
 
                 ws.onclose = () => {
                     updateConnStatus(false);
-                    addLog('⚠️ 与服务器断开，5秒后重连...');
+                    addLog('与服务器断开，5秒后重连...');
                     reconnectTimer = setTimeout(connectWS, 5000);
                 };
 
@@ -937,13 +966,25 @@
                 };
             }
 
+            // 自动选中第一个未推送客户
+            function autoSelectFirst() {
+                const unpushed = getUnpushedClients();
+                if (unpushed.length > 0 && !selectedClientId) {
+                    selectedClientId = unpushed[0].id;
+                    renderClientList();
+                    updateTargetInfo();
+                } else {
+                    updateTargetInfo();
+                }
+            }
+
             function updateConnStatus(connected) {
                 if (connected) {
                     connStatus.className = 'conn-status connected';
-                    connStatus.innerHTML = '<span>🟢</span><span>服务器已连接</span>';
+                    connText.textContent = '服务器已连接';
                 } else {
                     connStatus.className = 'conn-status disconnected';
-                    connStatus.innerHTML = '<span>🔴</span><span>服务器断开，重连中...</span>';
+                    connText.textContent = '服务器断开，重连中...';
                 }
             }
 
@@ -981,50 +1022,46 @@
                 }
             }
 
-            // ==================== 客户端渲染 ====================
+            // ==================== 客户端渲染 - 只显示待推送 ====================
             function renderClientList() {
-                const clientIds = Object.keys(clients);
-                const onlineCount = clientIds.filter(id => clients[id].online).length;
-                clientCount.textContent = onlineCount;
+                // 只显示在线且未推送的客户
+                const unpushed = getUnpushedClients();
+                clientCount.textContent = unpushed.length;
 
-                if (clientIds.length === 0) {
+                if (unpushed.length === 0) {
                     clientList.innerHTML = '';
                     clientList.appendChild(emptyClients);
                     emptyClients.style.display = 'block';
-                    selectedClientId = null;
+                    if (!selectedClientId || (clients[selectedClientId] && clients[selectedClientId].currentContent)) {
+                        selectedClientId = null;
+                    }
                     updateTargetInfo();
                     return;
                 }
 
                 emptyClients.style.display = 'none';
 
-                const sorted = clientIds.sort((a, b) => {
-                    const aOnline = clients[a].online ? 0 : 1;
-                    const bOnline = clients[b].online ? 0 : 1;
-                    if (aOnline !== bOnline) return aOnline - bOnline;
-                    return (clients[a].registeredAt || 0) - (clients[b].registeredAt || 0);
-                });
+                // 按注册时间排序
+                const sorted = [...unpushed].sort((a, b) => (a.registeredAt || 0) - (b.registeredAt || 0));
 
                 clientList.innerHTML = '';
-                for (const id of sorted) {
-                    const c = clients[id];
+                for (const c of sorted) {
                     const card = document.createElement('div');
-                    card.className = 'client-card' + (selectedClientId === id ? ' selected' : '');
-                    card.dataset.clientId = id;
+                    card.className = 'client-card' + (selectedClientId === c.id ? ' selected' : '');
+                    card.dataset.clientId = c.id;
 
-                    const displayName = c.name || c.phone || id.slice(-8);
+                    const displayName = c.name || c.phone || c.id.slice(-8);
                     card.innerHTML = `
                         <div class="client-avatar">📱</div>
                         <div class="client-info">
                             <div class="client-name">${escapeHtml(displayName)}</div>
-                            <div class="client-meta">${c.online ? '🟢 在线' : '⚫ 离线'} · ID: ${id.slice(-8)}</div>
-                            ${c.currentContent ? '<div class="client-current">📄 ' + escapeHtml(c.currentContent.substring(0, 30)) + '</div>' : ''}
+                            <div class="client-meta">🟢 在线 · 等待推送</div>
                         </div>
-                        <div class="client-status-indicator ${c.online ? 'online' : 'offline'}"></div>
+                        <div class="client-status-indicator online"></div>
                     `;
 
                     card.addEventListener('click', () => {
-                        selectClient(id);
+                        selectClient(c.id);
                     });
 
                     clientList.appendChild(card);
@@ -1042,26 +1079,32 @@
             }
 
             function updateTargetInfo() {
-                if (selectedClientId && clients[selectedClientId]) {
+                if (selectedClientId && clients[selectedClientId] && !clients[selectedClientId].currentContent) {
                     const name = clients[selectedClientId].name || selectedClientId;
                     targetText.textContent = `推送到：${name}`;
                     pushBtn.disabled = false;
-                    pushBtn.textContent = '📤 推送到 ' + name;
+                    pushBtn.textContent = '推送到 ' + name;
                 } else {
-                    targetText.textContent = '请在上方选择推送目标';
+                    const unpushed = getUnpushedClients();
+                    if (unpushed.length > 0) {
+                        targetText.textContent = `${unpushed.length} 个客户等待推送`;
+                    } else {
+                        targetText.textContent = '等待客户注册...';
+                    }
                     pushBtn.disabled = true;
-                    pushBtn.textContent = '📤 推送到选中';
+                    pushBtn.textContent = '推送到选中';
                 }
             }
 
             function updateHeaderStatus() {
+                const unpushed = getUnpushedClients();
                 const onlineCount = Object.values(clients).filter(c => c.online).length;
                 if (onlineCount > 0) {
                     statusDot.className = 'status-dot online';
-                    statusText.textContent = onlineCount + ' 个展示端在线';
+                    statusText.textContent = unpushed.length + ' 待推送 / ' + onlineCount + ' 在线';
                 } else {
                     statusDot.className = 'status-dot';
-                    statusText.textContent = '无展示端在线';
+                    statusText.textContent = '无客户在线';
                 }
             }
 
@@ -1185,7 +1228,14 @@
                 }
 
                 const targetName = targetId === 'all' ? '全部' : (clients[targetId] ? clients[targetId].name : targetId);
-                addLog(`📤 已推送: ${title || content.substring(0, 25)}`, targetName);
+                addLog(`已推送: ${title || content.substring(0, 25)}`, targetName);
+
+                // 推送后清空输入框，自动选中下一个
+                contentInput.value = '';
+                titleInput.value = '';
+                subtitleInput.value = '';
+                selectedClientId = null;
+                autoSelectFirst();
                 renderClientList();
                 updateReminder();
             }
@@ -1210,10 +1260,36 @@
                 }
 
                 const targetName = targetId === 'all' ? '全部' : (clients[targetId] ? clients[targetId].name : targetId);
-                addLog('🗑️ 已清空', targetName);
+                addLog('已清空', targetName);
                 renderClientList();
                 updateReminder();
             }
+
+            // ==================== 粘贴自动推送 ====================
+            contentInput.addEventListener('paste', (e) => {
+                // 延迟读取，等粘贴内容写入
+                setTimeout(() => {
+                    const content = contentInput.value.trim();
+                    if (!content) return;
+
+                    if (selectedClientId && clients[selectedClientId] && !clients[selectedClientId].currentContent) {
+                        // 有选中的未推送客户，直接推送
+                        pushToClient(selectedClientId, content, titleInput.value.trim(), subtitleInput.value.trim());
+                        showToast('已自动推送', 'success');
+                    } else {
+                        // 没有选中的，自动选第一个未推送的
+                        const unpushed = getUnpushedClients();
+                        if (unpushed.length > 0) {
+                            selectedClientId = unpushed[0].id;
+                            renderClientList();
+                            updateTargetInfo();
+                            pushToClient(selectedClientId, content, titleInput.value.trim(), subtitleInput.value.trim());
+                            showToast('已自动推送', 'success');
+                        }
+                        // 如果没有待推送客户，内容留在输入框等客户来
+                    }
+                }, 50);
+            });
 
             // ==================== 事件绑定 ====================
             pushBtn.addEventListener('click', () => {
@@ -1237,21 +1313,21 @@
                     return;
                 }
                 pushToClient('all', content, titleInput.value.trim(), subtitleInput.value.trim());
-                showToast('已推送到全部展示端', 'success');
+                showToast('已推送到全部', 'success');
             });
 
             clearBtn.addEventListener('click', () => {
                 if (!selectedClientId) {
-                    showToast('请先选择要清空的展示端', 'error');
+                    showToast('请先选择要清空的客户', 'error');
                     return;
                 }
                 clearClient(selectedClientId);
-                showToast('已清空选中展示端', 'success');
+                showToast('已清空选中客户', 'success');
             });
 
             clearAllBtn.addEventListener('click', () => {
                 clearClient('all');
-                showToast('已清空全部展示端', 'success');
+                showToast('已清空全部', 'success');
             });
 
             document.addEventListener('keydown', (e) => {
