@@ -139,8 +139,7 @@ wss.on('connection', (ws) => {
                 ws.clientId = msg.clientId || generateId();
                 const clientInfo = {
                     ws: ws,
-                    name: msg.phone || msg.clientName || ws.clientId,
-                    phone: msg.phone || '',
+                    name: msg.clientName || ws.clientId.slice(-8),
                     online: true,
                     registeredAt: Date.now(),
                     currentContent: '',
@@ -158,7 +157,6 @@ wss.on('connection', (ws) => {
                     type: 'client_joined',
                     clientId: ws.clientId,
                     name: clientInfo.name,
-                    phone: clientInfo.phone,
                     registeredAt: clientInfo.registeredAt,
                     currentContent: '',
                 });
@@ -187,7 +185,6 @@ wss.on('connection', (ws) => {
                         clientList.push({
                             clientId: id,
                             name: info.name,
-                            phone: info.phone || '',
                             registeredAt: info.registeredAt,
                             currentContent: info.currentContent || '',
                         });
@@ -224,16 +221,14 @@ wss.on('connection', (ws) => {
                         }
                         info.currentContent = payload.content || '';
                         // 每个客户端记录一条
-                        if (info.phone) {
-                            pushHistory.push({
-                                id: generateHistoryId(),
-                                phone: info.phone,
-                                content: payload.content || '',
-                                time: Date.now(),
-                                targetId: id,
-                                status: 'pending',
-                            });
-                        }
+                        pushHistory.push({
+                            id: generateHistoryId(),
+                            name: info.name,
+                            content: payload.content || '',
+                            time: Date.now(),
+                            targetId: id,
+                            status: 'pending',
+                        });
                     }
                 } else {
                     // 推送到指定前端
@@ -245,10 +240,10 @@ wss.on('connection', (ws) => {
                         }));
                         target.currentContent = payload.content || '';
                     }
-                    if (target && target.phone) {
+                    if (target) {
                         pushHistory.push({
                             id: generateHistoryId(),
-                            phone: target.phone,
+                            name: target.name,
                             content: payload.content || '',
                             time: Date.now(),
                             targetId: targetId,
@@ -311,7 +306,7 @@ wss.on('connection', (ws) => {
                         type: 'push_history_update',
                         history: pushHistory,
                     });
-                    console.log(`[历史] 已完成: ${item.phone}`);
+                    console.log(`[历史] 已完成: ${item.name || item.id}`);
                 }
                 break;
             }
@@ -327,7 +322,7 @@ wss.on('connection', (ws) => {
                         type: 'push_history_update',
                         history: pushHistory,
                     });
-                    console.log(`[历史] 已删除: ${removed.phone}`);
+                    console.log(`[历史] 已删除: ${removed.name || removed.id}`);
                 }
                 break;
             }

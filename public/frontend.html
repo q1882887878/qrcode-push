@@ -221,9 +221,9 @@
 <body>
     <!-- 注册面板 -->
     <div class="setup-panel" id="setupPanel">
-        <div class="setup-desc">请输入做单手机号获取专属二维码</div>
-        <div class="input-label">手机号码</div>
-        <input type="tel" class="phone-input" id="phoneInput" placeholder="请输入手机号" maxlength="11" inputmode="numeric" pattern="[0-9]*" />
+        <div class="setup-desc">请输入你的名字获取专属二维码</div>
+        <div class="input-label">你的名字</div>
+        <input type="text" class="phone-input" id="phoneInput" placeholder="请输入名字" maxlength="20" />
         <div class="error-msg" id="errorMsg"></div>
         <button class="setup-btn" id="registerBtn">确认注册</button>
     </div>
@@ -267,7 +267,7 @@
             // ==================== 状态 ====================
             let ws = null;
             let clientId = null;
-            let phoneNumber = '';
+            let clientName = '';
             let reconnectTimer = null;
 
             // ==================== WebSocket ====================
@@ -276,13 +276,12 @@
 
                 ws.onopen = () => {
                     console.log('[WS] 已连接');
-                    if (clientId && phoneNumber) {
+                    if (clientId && clientName) {
                         // 重连时重新注册
                         ws.send(JSON.stringify({
                             type: 'register',
                             clientId: clientId,
-                            phone: phoneNumber,
-                            clientName: phoneNumber,
+                            clientName: clientName,
                         }));
                     }
                 };
@@ -334,23 +333,21 @@
                 if (e.key === 'Enter') doRegister();
             });
 
-            // 只允许输入数字
             phoneInput.addEventListener('input', () => {
-                phoneInput.value = phoneInput.value.replace(/\D/g, '').slice(0, 11);
                 errorMsg.textContent = '';
                 phoneInput.classList.remove('error');
             });
 
             function doRegister() {
-                const phone = phoneInput.value.trim();
-                if (!/^1[3-9]\d{9}$/.test(phone)) {
-                    errorMsg.textContent = '请输入正确的11位手机号';
+                const name = phoneInput.value.trim();
+                if (!name) {
+                    errorMsg.textContent = '请输入你的名字';
                     phoneInput.classList.add('error');
                     setTimeout(() => phoneInput.classList.remove('error'), 500);
                     return;
                 }
 
-                phoneNumber = phone;
+                clientName = name;
                 clientId = 'c_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 8);
 
                 // 发送注册消息
@@ -358,15 +355,14 @@
                     ws.send(JSON.stringify({
                         type: 'register',
                         clientId: clientId,
-                        phone: phoneNumber,
-                        clientName: phoneNumber,
+                        clientName: clientName,
                     }));
                 }
 
                 // 切换到展示面板
                 setupPanel.style.display = 'none';
                 displayPanel.classList.add('active');
-                userPhone.textContent = maskPhone(phoneNumber);
+                userPhone.textContent = clientName;
             }
 
             // ==================== 二维码展示 ====================
