@@ -139,7 +139,8 @@ wss.on('connection', (ws) => {
                 ws.clientId = msg.clientId || generateId();
                 const clientInfo = {
                     ws: ws,
-                    name: msg.clientName || ws.clientId.slice(-8),
+                    name: msg.phone || msg.clientName || ws.clientId,
+                    phone: msg.phone || '',
                     online: true,
                     registeredAt: Date.now(),
                     currentContent: '',
@@ -157,6 +158,7 @@ wss.on('connection', (ws) => {
                     type: 'client_joined',
                     clientId: ws.clientId,
                     name: clientInfo.name,
+                    phone: clientInfo.phone,
                     registeredAt: clientInfo.registeredAt,
                     currentContent: '',
                 });
@@ -185,6 +187,7 @@ wss.on('connection', (ws) => {
                         clientList.push({
                             clientId: id,
                             name: info.name,
+                            phone: info.phone || '',
                             registeredAt: info.registeredAt,
                             currentContent: info.currentContent || '',
                         });

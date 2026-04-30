@@ -762,7 +762,7 @@
 
             // ==================== 状态 ====================
             let ws = null;
-            let clients = {};   // { clientId: { name, online, registeredAt, currentContent } }
+            let clients = {};   // { clientId: { name, phone, online, registeredAt, currentContent } }
             let selectedClientId = null;
             let reconnectTimer = null;
             let audioCtx = null;
@@ -870,7 +870,8 @@
                             clients = {};
                             for (const c of msg.clients) {
                                 clients[c.clientId] = {
-                                    name: c.name || c.clientId.slice(-8),
+                                    name: c.name || c.phone || c.clientId,
+                                    phone: c.phone || '',
                                     online: true,
                                     registeredAt: c.registeredAt,
                                     currentContent: c.currentContent || '',
@@ -884,7 +885,8 @@
                         }
                         case 'client_joined': {
                             clients[msg.clientId] = {
-                                name: msg.name || msg.clientId.slice(-8),
+                                name: msg.name || msg.phone || msg.clientId,
+                                phone: msg.phone || '',
                                 online: true,
                                 registeredAt: msg.registeredAt || Date.now(),
                                 currentContent: msg.currentContent || '',
@@ -1048,7 +1050,7 @@
                     card.className = 'client-card' + (selectedClientId === c.id ? ' selected' : '');
                     card.dataset.clientId = c.id;
 
-                    const displayName = c.name || c.id.slice(-8);
+                    const displayName = c.name || c.phone || c.id.slice(-8);
                     card.innerHTML = `
                         <div class="client-avatar">📱</div>
                         <div class="client-info">
